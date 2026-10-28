@@ -1,6 +1,6 @@
 # bluegrass jam splitter
 
-Drop a long jam recording into the **Jam Inbox** folder in Google Drive. Within about an hour,
+Drop a long jam recording into the **Jam Inbox** folder in Google Drive. Within about half an hour,
 the individual songs show up in **Jam Tracks/&lt;recording name&gt;/** as
 `01 - Salt Creek.mp3`, `02 - Blackberry Blossom.mp3`, … with the chat and dead time between
 songs cut out. Each folder also gets a `tracklist.txt` that shows where each song sits in the
@@ -9,7 +9,7 @@ original and why it was given that title. The original recording is moved to
 
 ## How it works
 
-`jamsplit.py` runs on GitHub Actions every 30 minutes (`.github/workflows/process.yml`):
+`jamsplit.py` runs on GitHub Actions every 15 minutes (`.github/workflows/process.yml`):
 
 1. **rclone** downloads anything new from `Jam Inbox`.
 2. An AudioSet classifier (AST) scores every 10 s window for *speech* vs. *bluegrass music*.

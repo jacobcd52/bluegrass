@@ -2,7 +2,7 @@ name: Process jam recordings
 
 on:
   schedule:
-    - cron: "17,47 * * * *"   # every 30 min
+    - cron: "7,22,37,52 * * * *"   # every 15 min
   workflow_dispatch:
 
 concurrency:

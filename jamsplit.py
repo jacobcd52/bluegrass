@@ -31,6 +31,7 @@ AST_MODEL = "MIT/ast-finetuned-audioset-10-10-0.4593"
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5-5")
 MIN_SONG = 60  # seconds
+PAD = float(os.environ.get("PAD_SECONDS", 10))  # extra audio kept before/after each song
 AUDIO_EXTS = {".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".amr", ".3gp"}
 
 
@@ -185,14 +186,14 @@ def safe_name(s):
     return s[:80] or "Untitled"
 
 
-def cut(src, songs, outdir, album):
+def cut(src, songs, outdir, album, length):
     outdir.mkdir(parents=True, exist_ok=True)
     copy = src.suffix.lower() == ".mp3"
     lines = []
     for n, s in enumerate(songs, 1):
         title = s.get("title") or f"Unknown tune {n}"
         name = f"{n:02d} - {safe_name(title)}.mp3"
-        start, end = float(s["start"]), float(s["end"])
+        start, end = max(0.0, float(s["start"]) - PAD), min(length, float(s["end"]) + PAD)
         codec = ["-c:a", "copy"] if copy else ["-c:a", "libmp3lame", "-q:a", "2"]
         subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                         "-ss", str(start), "-to", str(end), "-i", str(src), "-map", "0:a",
@@ -223,7 +224,7 @@ def process(src, outdir, workdir):
         log(f"  Claude step failed ({e}); using classifier segments without titles")
         songs = [{"start": a, "end": b, "title": None, "confidence": "low",
                   "evidence": "classifier only"} for a, b in cands]
-    cut(src, songs, outdir, album=src.stem)
+    cut(src, songs, outdir, album=src.stem, length=length)
     return songs
 
 
@@ -240,8 +241,14 @@ def run_drive(inbox, output):
     if not files:
         log("nothing to do")
         return
+    done = {d.rstrip("/") for d in rclone("lsf", f"gdrive:{output}", "--dirs-only",
+                                           capture=True).splitlines()}
     failed = []
     for f in files:
+        if Path(f).stem in done:  # e.g. re-uploaded by a phone sync app
+            log(f"== {f} already processed; moving to processed/")
+            rclone("moveto", f"gdrive:{inbox}/{f}", f"gdrive:{inbox}/processed/{f}")
+            continue
         work = Path(tempfile.mkdtemp())
         try:
             src = work / f
