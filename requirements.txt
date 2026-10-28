@@ -1,0 +1,6 @@
+anthropic>=0.40
+faster-whisper>=1.1
+transformers>=4.45
+soundfile
+scipy
+numpy

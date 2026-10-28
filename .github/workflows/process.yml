@@ -1,0 +1,64 @@
+name: Process jam recordings
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"   # every 30 min
+  workflow_dispatch:
+
+concurrency:
+  group: jamsplit
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      INBOX: ${{ vars.JAM_INBOX || 'Jam Inbox' }}
+      OUTPUT: ${{ vars.JAM_OUTPUT || 'Jam Tracks' }}
+    steps:
+      - name: Install rclone
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        run: |
+          curl -sSL https://rclone.org/install.sh | sudo bash >/dev/null
+          mkdir -p ~/.config/rclone
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+
+      - name: Look for new recordings
+        id: check
+        run: |
+          rclone mkdir "gdrive:$INBOX/processed"
+          files=$(rclone lsf "gdrive:$INBOX" --files-only --max-depth 1 \
+            --include "*.{mp3,MP3,m4a,M4A,wav,WAV,aac,AAC,ogg,OGG,flac,FLAC,amr,AMR,3gp,3GP}")
+          echo "$files"
+          if [ -n "$files" ]; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.found == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.found == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache models
+        if: steps.check.outputs.found == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-models-v1
+
+      - name: Install dependencies
+        if: steps.check.outputs.found == 'true'
+        run: |
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -r requirements.txt
+
+      - name: Process
+        if: steps.check.outputs.found == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python jamsplit.py drive --inbox "$INBOX" --output "$OUTPUT"
