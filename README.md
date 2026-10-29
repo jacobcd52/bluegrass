@@ -43,6 +43,17 @@ To use different folder names, add repository *variables* `JAM_INBOX` / `JAM_OUT
 - **Automatic:** install *Autosync for Google Drive* (MetaCtrl). Set up a one-way "Upload only" sync from your
   recorder's folder to `Jam Inbox`. New recordings then upload by themselves, ideally on Wi‑Fi only.
 
+## Faster pickup (optional)
+
+GitHub's free schedule can run hours late. `drive-trigger.gs` is a Google Apps Script that
+checks Jam Inbox every 5 minutes and starts the GitHub job immediately:
+
+1. Create a GitHub token at <https://github.com/settings/personal-access-tokens/new>. Give it access
+   to only this repository, with the permission **Actions: Read and write**.
+2. At <https://script.google.com>, create a new project, paste in `drive-trigger.gs`, and put your
+   token into it.
+3. Select `setup` and press **Run**, then approve the permissions prompt.
+
 ## Running locally
 
 ```bash
